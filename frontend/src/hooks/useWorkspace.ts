@@ -2,23 +2,22 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { WorkspaceMember, MemberRole } from "@/types";
-import { MOCK_MEMBERS } from "@/lib/mockData";
+import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 
-/** Simulated API fetch for workspace members */
+/** Fetch workspace members (scoped to current user) */
 async function fetchMembers(): Promise<WorkspaceMember[]> {
-    await new Promise((r) => setTimeout(r, 300));
-    return MOCK_MEMBERS;
-}
+    const data = await apiGet("/workspace/members");
 
-/** Simulated API update for member role */
-async function updateMemberRole(
-    id: string,
-    role: MemberRole
-): Promise<WorkspaceMember> {
-    await new Promise((r) => setTimeout(r, 200));
-    const member = MOCK_MEMBERS.find((m) => m.id === id);
-    if (!member) throw new Error("Member not found");
-    return { ...member, role };
+    return data.members.map((m: any) => ({
+        id: m.id,
+        name: m.name,
+        email: m.email,
+        role: m.role,
+        status: m.status,
+        joinedAt: m.joinedAt?._seconds
+            ? new Date(m.joinedAt._seconds * 1000).toISOString()
+            : m.joinedAt,
+    }));
 }
 
 /** React Query hook for workspace members */
@@ -29,12 +28,34 @@ export function useWorkspace() {
     });
 }
 
+/** Mutation hook for inviting a member */
+export function useInviteMember() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (email: string) => apiPost("/workspace/invite", { email, role: "viewer" }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["workspace-members"] });
+        },
+    });
+}
+
 /** Mutation hook for updating a member's role */
 export function useUpdateMemberRole() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, role }: { id: string; role: MemberRole }) =>
-            updateMemberRole(id, role),
+            apiPatch(`/workspace/members/${id}`, { role }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["workspace-members"] });
+        },
+    });
+}
+
+/** Mutation hook for removing a member */
+export function useRemoveMember() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => apiDelete(`/workspace/members/${id}`),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["workspace-members"] });
         },

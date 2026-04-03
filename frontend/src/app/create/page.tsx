@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { X, Calendar, Loader2 } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import UploadDropzone from "@/components/UploadDropzone";
+import { apiPostForm } from "@/lib/api";
 
 /**
  * Create meeting page with form and file upload dropzone.
@@ -12,6 +13,7 @@ import UploadDropzone from "@/components/UploadDropzone";
 export default function CreateMeetingPage() {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [statusMessage, setStatusMessage] = useState("");
 
     // Form state
     const [title, setTitle] = useState("");
@@ -19,6 +21,7 @@ export default function CreateMeetingPage() {
     const [participantInput, setParticipantInput] = useState("");
     const [participants, setParticipants] = useState<string[]>([]);
     const [agenda, setAgenda] = useState("");
+    const [files, setFiles] = useState<File[]>([]);
 
     const addParticipant = (e: React.KeyboardEvent) => {
         if ((e.key === "Enter" || e.key === ",") && participantInput.trim()) {
@@ -37,10 +40,37 @@ export default function CreateMeetingPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (files.length === 0) {
+            alert("Please upload an audio or transcript file.");
+            return;
+        }
+
         setIsSubmitting(true);
-        // Simulate API request
-        await new Promise((r) => setTimeout(r, 1200));
-        router.push("/processing/new");
+        setStatusMessage("Uploading file & generating minutes…");
+
+        try {
+            const formData = new FormData();
+            formData.append("file", files[0]);
+            formData.append("title", title);
+            formData.append("date", date);
+            formData.append("participants", JSON.stringify(participants));
+            formData.append("agenda", agenda);
+
+            const data = await apiPostForm("/meetings", formData);
+
+            if (data.meetingId) {
+                router.push(`/minutes/${data.meetingId}`);
+            } else {
+                throw new Error(data.message || "Failed to generate minutes");
+            }
+        } catch (error: any) {
+            console.error("Submission error:", error);
+            alert("Error: " + error.message);
+        } finally {
+            setIsSubmitting(false);
+            setStatusMessage("");
+        }
     };
 
     return (
@@ -151,10 +181,18 @@ export default function CreateMeetingPage() {
                     <div className="card p-5">
                         <h2 className="section-title mb-1">Upload File</h2>
                         <p className="text-xs text-gray-500 mb-4">
-                            Upload an audio recording or transcript to generate AI minutes.
+                            Upload an audio recording (.mp3, .wav) or text transcript (.txt) to generate AI minutes.
                         </p>
-                        <UploadDropzone />
+                        <UploadDropzone onFilesChange={setFiles} />
                     </div>
+
+                    {/* Status */}
+                    {statusMessage && (
+                        <div className="flex items-center gap-2 px-4 py-3 bg-primary-50 text-primary text-sm rounded-lg">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            {statusMessage}
+                        </div>
+                    )}
 
                     {/* Submit */}
                     <div className="flex items-center justify-end gap-3">
@@ -167,13 +205,13 @@ export default function CreateMeetingPage() {
                         </button>
                         <button
                             type="submit"
-                            disabled={isSubmitting}
-                            className="btn-primary"
+                            disabled={isSubmitting || files.length === 0}
+                            className={`btn-primary ${isSubmitting || files.length === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                             {isSubmitting ? (
                                 <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    Submitting…
+                                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                    Processing…
                                 </>
                             ) : (
                                 "Generate Minutes"

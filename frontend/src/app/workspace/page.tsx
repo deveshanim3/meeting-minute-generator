@@ -1,28 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Plus, Trash2 } from "lucide-react";
+import { Mail, Plus, Trash2, Loader2, Check, UserPlus } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
-import StatusBadge from "@/components/StatusBadge";
-import { useWorkspace, useUpdateMemberRole } from "@/hooks/useWorkspace";
+import { useWorkspace, useInviteMember, useUpdateMemberRole, useRemoveMember } from "@/hooks/useWorkspace";
 import { MemberRole, WorkspaceMember } from "@/types";
 import { formatDate, getInitials } from "@/lib/utils";
 
 const ROLE_OPTIONS: MemberRole[] = ["admin", "editor", "viewer"];
 
 /**
- * Workspace page: member list table with role management and invite input.
+ * Workspace page: member list with real invite, role management, and remove.
  */
 export default function WorkspacePage() {
     const { data: members, isLoading } = useWorkspace();
+    const inviteMember = useInviteMember();
     const updateRole = useUpdateMemberRole();
+    const removeMember = useRemoveMember();
     const [inviteEmail, setInviteEmail] = useState("");
+    const [inviteSuccess, setInviteSuccess] = useState(false);
 
-    const handleInvite = (e: React.FormEvent) => {
+    const handleInvite = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!inviteEmail.trim()) return;
-        alert(`Invitation sent to ${inviteEmail}`);
-        setInviteEmail("");
+
+        try {
+            await inviteMember.mutateAsync(inviteEmail.trim());
+            setInviteSuccess(true);
+            setInviteEmail("");
+            setTimeout(() => setInviteSuccess(false), 2500);
+        } catch (err: any) {
+            alert(err.message || "Failed to invite member");
+        }
+    };
+
+    const handleRemove = async (member: WorkspaceMember) => {
+        if (!confirm(`Remove ${member.name} (${member.email}) from the workspace?`)) return;
+        try {
+            await removeMember.mutateAsync(member.id);
+        } catch (err: any) {
+            alert(err.message || "Failed to remove member");
+        }
     };
 
     return (
@@ -43,11 +61,26 @@ export default function WorkspacePage() {
                                 onChange={(e) => setInviteEmail(e.target.value)}
                                 placeholder="colleague@company.com"
                                 className="form-input pl-9"
+                                disabled={inviteMember.isPending}
                             />
                         </div>
-                        <button type="submit" className="btn-primary">
-                            <Plus className="w-4 h-4" />
-                            Invite Member
+                        <button
+                            type="submit"
+                            className="btn-primary"
+                            disabled={inviteMember.isPending || !inviteEmail.trim()}
+                        >
+                            {inviteMember.isPending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : inviteSuccess ? (
+                                <Check className="w-4 h-4" />
+                            ) : (
+                                <Plus className="w-4 h-4" />
+                            )}
+                            {inviteMember.isPending
+                                ? "Inviting…"
+                                : inviteSuccess
+                                ? "Invited!"
+                                : "Invite Member"}
                         </button>
                     </form>
                 </div>
@@ -69,7 +102,7 @@ export default function WorkspacePage() {
                         <div className="flex items-center justify-center py-12">
                             <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                         </div>
-                    ) : (
+                    ) : members && members.length > 0 ? (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead className="bg-gray-50 border-b border-gray-200">
@@ -90,8 +123,8 @@ export default function WorkspacePage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-border">
-                                    {members?.map((member: WorkspaceMember) => (
-                                        <tr key={member.id} className="group hover:bg-gray-50 transition-colors">
+                                    {members.map((member: WorkspaceMember) => (
+                                        <tr key={member.id} className="group hover:bg-gray-500 hover:text-black transition-colors">
                                             <td className="px-5 py-3.5">
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary text-xs font-semibold shrink-0">
@@ -130,9 +163,7 @@ export default function WorkspacePage() {
                                                 <button
                                                     className="flex items-center justify-center w-7 h-7 rounded-md text-gray-500 hover:text-danger hover:bg-danger-light transition-colors opacity-0 group-hover:opacity-100"
                                                     aria-label={`Remove ${member.name}`}
-                                                    onClick={() =>
-                                                        alert(`Remove ${member.name} - confirm in production`)
-                                                    }
+                                                    onClick={() => handleRemove(member)}
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
@@ -141,6 +172,16 @@ export default function WorkspacePage() {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gray-100 mb-4">
+                                <UserPlus className="w-6 h-6 text-gray-400" />
+                            </div>
+                            <p className="text-sm font-medium text-gray-900">No team members yet</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Invite your first team member using the form above
+                            </p>
                         </div>
                     )}
                 </div>

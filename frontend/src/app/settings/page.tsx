@@ -1,9 +1,51 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
+import { useAuth } from "@/context/AuthContext";
+import { apiPatch } from "@/lib/api";
+import { updateProfile } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { Loader2, Check } from "lucide-react";
 
 /**
- * Settings page placeholder.
+ * Settings page.
  */
 export default function SettingsPage() {
+    const { user } = useAuth();
+    
+    const [displayName, setDisplayName] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
+
+    // Initialize display name from user
+    useEffect(() => {
+        if (user) {
+            setDisplayName(user.displayName || "");
+        }
+    }, [user]);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            // 1. Call Backend API to save display name
+            await apiPatch("/user/profile", { displayName });
+            
+            // 2. Update local Firebase Auth user profile
+            if (auth.currentUser) {
+                await updateProfile(auth.currentUser, { displayName });
+                await auth.currentUser.reload();
+            }
+
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 2000);
+        } catch (error: any) {
+            alert("Failed to update profile: " + error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     return (
         <AppLayout title="Settings">
             <div className="max-w-2xl space-y-4">
@@ -18,8 +60,10 @@ export default function SettingsPage() {
                             <input
                                 id="display-name"
                                 type="text"
-                                defaultValue="Alice Johnson"
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
                                 className="form-input"
+                                placeholder="Your Name"
                             />
                         </div>
                         <div>
@@ -29,12 +73,24 @@ export default function SettingsPage() {
                             <input
                                 id="settings-email"
                                 type="email"
-                                defaultValue="alice@company.com"
-                                className="form-input"
+                                value={user?.email || ""}
+                                disabled
+                                className="form-input bg-gray-50 text-gray-500 cursor-not-allowed opacity-75"
                             />
                         </div>
                         <div className="flex justify-end">
-                            <button className="btn-primary text-sm">Save Changes</button>
+                            <button
+                                className="btn-primary text-sm flex items-center gap-2"
+                                onClick={handleSave}
+                                disabled={isSaving || !displayName.trim()}
+                            >
+                                {isSaving ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : saveSuccess ? (
+                                    <Check className="w-4 h-4" />
+                                ) : null}
+                                {isSaving ? "Saving..." : saveSuccess ? "Saved!" : "Save Changes"}
+                            </button>
                         </div>
                     </div>
                 </div>

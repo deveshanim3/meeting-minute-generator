@@ -2,12 +2,21 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Meeting, MeetingFilters } from "@/types";
-import { MOCK_MEETINGS } from "@/lib/mockData";
+import { apiGet } from "@/lib/api";
 
-/** Simulated API fetch for meetings */
+/** Fetch meetings from the backend API (scoped to current user) */
 async function fetchMeetings(filters: MeetingFilters): Promise<Meeting[]> {
-    await new Promise((r) => setTimeout(r, 400));
-    let results = [...MOCK_MEETINGS];
+    const data = await apiGet("/meetings");
+
+    let results: Meeting[] = data.meetings.map((m: any) => ({
+        id: m.id,
+        title: m.title,
+        date: m.date,
+        participantsCount: m.participants?.length || 0,
+        status: "completed" as const,
+        agenda: m.agenda,
+        participants: m.participants || [],
+    }));
 
     if (filters.search) {
         const q = filters.search.toLowerCase();
@@ -25,10 +34,23 @@ async function fetchMeetings(filters: MeetingFilters): Promise<Meeting[]> {
     return results;
 }
 
-/** Fetches a single meeting by ID */
+/** Fetch a single meeting by ID */
 async function fetchMeeting(id: string): Promise<Meeting | undefined> {
-    await new Promise((r) => setTimeout(r, 200));
-    return MOCK_MEETINGS.find((m) => m.id === id);
+    try {
+        const data = await apiGet(`/meetings/${id}`);
+        const m = data.meeting;
+        return {
+            id: m.id,
+            title: m.title,
+            date: m.date,
+            participantsCount: m.participants?.length || 0,
+            status: "completed" as const,
+            agenda: m.agenda,
+            participants: m.participants || [],
+        };
+    } catch {
+        return undefined;
+    }
 }
 
 /** React Query hook for the list of meetings */

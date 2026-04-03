@@ -71,10 +71,10 @@ export default function DashboardPage() {
             {/* Summary stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
                 {[
-                    { label: "Total Meetings", value: "6" },
-                    { label: "Completed", value: "3" },
-                    { label: "Processing", value: "1" },
-                    { label: "Queued", value: "1" },
+                    { label: "Total Meetings", value: String(meetings?.length || 0) },
+                    { label: "Completed", value: String(meetings?.filter(m => m.status === "completed").length || 0) },
+                    { label: "Processing", value: String(meetings?.filter(m => m.status === "processing").length || 0) },
+                    { label: "Queued", value: String(meetings?.filter(m => m.status === "queued").length || 0) },
                 ].map((stat) => (
                     <div key={stat.label} className="card px-4 py-3">
                         <p className="text-xs text-gray-500">{stat.label}</p>
