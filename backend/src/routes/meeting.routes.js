@@ -1,7 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const { authMiddleware } = require("../middlewares/auth.middleware");
-const { generateMinutes, listMeetings, getMeeting } = require("../controllers/meeting.controller");
+const { generateMinutes, listMeetings, getMeeting, updateMeeting } = require("../controllers/meeting.controller");
 
 const router = express.Router();
 
@@ -21,5 +21,8 @@ router.get("/:id", getMeeting);
 
 // POST /api/v1/meetings      — upload file & generate minutes
 router.post("/", upload.single("file"), generateMinutes);
+
+// PATCH /api/v1/meetings/:id — update meeting
+router.patch("/:id", updateMeeting);
 
 module.exports = router;

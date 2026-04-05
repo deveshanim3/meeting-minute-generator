@@ -186,3 +186,33 @@ exports.getMeeting = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * PATCH /api/v1/meetings/:id — update a meeting (e.g. minutes)
+ */
+exports.updateMeeting = async (req, res, next) => {
+  try {
+    if (!db) {
+      return res.status(500).json({ success: false, message: "Firebase not configured" });
+    }
+
+    const docRef = db.collection("meetings").doc(req.params.id);
+    const doc = await docRef.get();
+
+    if (!doc.exists || doc.data().uid !== req.uid) {
+      return res.status(404).json({ success: false, message: "Meeting not found" });
+    }
+
+    const { minutes } = req.body;
+    const updates = {};
+    if (minutes !== undefined) updates.minutes = minutes;
+
+    await docRef.update(updates);
+
+    return res.json({ success: true, message: "Meeting updated successfully" });
+  } catch (error) {
+    console.error("Error updating meeting:", error);
+    next(error);
+  }
+};
+
