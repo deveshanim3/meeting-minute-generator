@@ -1,6 +1,6 @@
 import { auth } from "@/lib/firebase";
 
-const API_URL = "http://localhost:8080/api/v1";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://meeting-minute-generator.onrender.com/api/v1";
 
 /**
  * Returns the current user's Firebase ID token for Authorization header.

@@ -6,7 +6,7 @@ dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 8080),
-  clientUrl: process.env.CLIENT_URL || "http://localhost:3000",
+  clientUrl: process.env.CLIENT_URL ? process.env.CLIENT_URL.split(",") : ["http://localhost:3000", "https://meeting-minute-generator--meeting-minutes-generato-fb4e3.asia-southeast1.hosted.app"],
   jwtSecret: process.env.JWT_SECRET || "",
   firebaseServiceAccount: process.env.FIREBASE_SERVICE_ACCOUNT || "",
   firebaseStorageBucket: process.env.FIREBASE_STORAGE_BUCKET || "",
